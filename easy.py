@@ -2,11 +2,12 @@ from itertools import product
 from pprint import pprint
 
 import numpy as np
+from numpy import ndarray
 
 graph_g = set()
 POWER = 0
 
-MASK = 0  #(1 << POWER) - 1  # Создаем маску из всех единиц длиной k бит
+MASK = 0  # (1 << POWER) - 1  # Создаем маску из всех единиц длиной k бит
 
 
 def invert_bits(num):
@@ -48,16 +49,28 @@ def get_matrix_h(n):
             )
             weight = src_to_trg + weight_inside_sector
 
-
             matrix_h[row, column] = weight
             matrix_h[column, row] = weight
 
     return matrix_h
 
 
+def get_cleansed_matrix(matrix: ndarray, val1, val2, val3):
+    combinations_amount = 2 ** POWER
+    answer = matrix.copy()
+    for sector, vertex in product(range(3), range(combinations_amount)):
+        value = [val1, val2, val3][sector]
+        for combo in range(combinations_amount):
+            row, column = (vertex + sector * combinations_amount, combo + ((sector + 1) % 3) * combinations_amount)
+            answer[row, column] = value if answer[row, column] == value else 0
+            answer[column, row] = value if answer[column, row] == value else 0
+
+    return answer
+
+
 def main():
     global POWER, MASK
-    with open("input.txt") as f:
+    with open("classical.txt") as f:
         n, *data = f.readlines()
 
     n = int(n)
@@ -71,9 +84,16 @@ def main():
         graph_g.add((target, src))
 
     matrix_h = get_matrix_h(n)
-    pprint(matrix_h)
-    return
+
+    edges = len(graph_g) // 2
+    max_cut = 0
+    for v1, v2, v3 in product(range(1, edges + 1), range(1, edges + 1), range(1, edges + 1)):
+        cleansed_h = get_cleansed_matrix(matrix_h, v1, v2, v3)
+        powered = np.linalg.matrix_power(cleansed_h, 3)
+        max_cut = max(max_cut, (v1 + v2 + v3) * powered.any())
+
+    return max_cut
 
 
 if __name__ == '__main__':
-    main()
+    print(main())
